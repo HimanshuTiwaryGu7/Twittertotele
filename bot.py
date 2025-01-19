@@ -1,6 +1,5 @@
 import os
 import logging
-from dotenv import load_dotenv
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import tweepy
 import requests
@@ -8,53 +7,33 @@ from io import BytesIO
 from flask import Flask
 import threading
 
-# Configure logging first
+# Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-
-# Debug environment variables
-required_vars = [
-    'TWITTER_API_KEY',
-    'TWITTER_API_SECRET',
-    'TWITTER_ACCESS_TOKEN',
-    'TWITTER_ACCESS_SECRET',
-    'TELEGRAM_BOT_TOKEN'
-]
-
-# Check for missing environment variables
-missing_vars = [var for var in required_vars if not os.getenv(var)]
-if missing_vars:
-    logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
-    raise ValueError("Missing required environment variables")
-
-# Log successful environment variable loading
-logger.info("Environment variables loaded successfully")
+# Credentials
+TWITTER_API_KEY = 'MroH2zmSzO8N1LsawRVT8feMU'
+TWITTER_API_SECRET = 'M3q2WDa2qBVklxHXyiCorHJq7mpBtd9G82yP95SQjnXdqmAoJa'
+TWITTER_ACCESS_TOKEN = '1880993642929893376-lDwFQN273VAeMpKFwM76UyhlXyMbwa'
+TWITTER_ACCESS_SECRET = '3LZDvID0q4UMCwDcFgOVEKKR6u564hEe3PTcxZulEJ3FN'
+TELEGRAM_BOT_TOKEN = '7999623146:AAGCCC_FwridGlPskLXUP1TLQg5RiwVUezU'
 
 # Twitter API v2 setup with OAuth 1.0a User Context
 try:
     client = tweepy.Client(
-        consumer_key=os.getenv('TWITTER_API_KEY'),
-        consumer_secret=os.getenv('TWITTER_API_SECRET'),
-        access_token=os.getenv('TWITTER_ACCESS_TOKEN'),
-        access_token_secret=os.getenv('TWITTER_ACCESS_SECRET'),
+        consumer_key=TWITTER_API_KEY,
+        consumer_secret=TWITTER_API_SECRET,
+        access_token=TWITTER_ACCESS_TOKEN,
+        access_token_secret=TWITTER_ACCESS_SECRET,
         wait_on_rate_limit=True
     )
     
     # Keep v1.1 API for media upload only
-    auth = tweepy.OAuthHandler(
-        os.getenv('TWITTER_API_KEY'),
-        os.getenv('TWITTER_API_SECRET')
-    )
-    auth.set_access_token(
-        os.getenv('TWITTER_ACCESS_TOKEN'),
-        os.getenv('TWITTER_ACCESS_SECRET')
-    )
+    auth = tweepy.OAuthHandler(TWITTER_API_KEY, TWITTER_API_SECRET)
+    auth.set_access_token(TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
     twitter_api = tweepy.API(auth)
     logger.info("Twitter API authentication successful")
 except Exception as e:
@@ -175,7 +154,7 @@ def main():
     """Start the bot"""
     try:
         # Create updater and pass in bot token
-        updater = Updater(os.getenv('TELEGRAM_BOT_TOKEN'), use_context=True)
+        updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
         logger.info("Telegram bot initialized successfully")
 
         # Get the dispatcher to register handlers
