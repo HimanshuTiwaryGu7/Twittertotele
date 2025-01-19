@@ -8,34 +8,58 @@ from io import BytesIO
 from flask import Flask
 import threading
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
+# Configure logging first
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Debug environment variables
+required_vars = [
+    'TWITTER_API_KEY',
+    'TWITTER_API_SECRET',
+    'TWITTER_ACCESS_TOKEN',
+    'TWITTER_ACCESS_SECRET',
+    'TELEGRAM_BOT_TOKEN'
+]
+
+# Check for missing environment variables
+missing_vars = [var for var in required_vars if not os.getenv(var)]
+if missing_vars:
+    logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+    raise ValueError("Missing required environment variables")
+
+# Log successful environment variable loading
+logger.info("Environment variables loaded successfully")
 
 # Twitter API v2 setup with OAuth 1.0a User Context
-client = tweepy.Client(
-    consumer_key=os.getenv('TWITTER_API_KEY'),
-    consumer_secret=os.getenv('TWITTER_API_SECRET'),
-    access_token=os.getenv('TWITTER_ACCESS_TOKEN'),
-    access_token_secret=os.getenv('TWITTER_ACCESS_SECRET'),
-    wait_on_rate_limit=True
-)
-
-# Keep v1.1 API for media upload only
-auth = tweepy.OAuthHandler(
-    os.getenv('TWITTER_API_KEY'),
-    os.getenv('TWITTER_API_SECRET')
-)
-auth.set_access_token(
-    os.getenv('TWITTER_ACCESS_TOKEN'),
-    os.getenv('TWITTER_ACCESS_SECRET')
-)
-twitter_api = tweepy.API(auth)
+try:
+    client = tweepy.Client(
+        consumer_key=os.getenv('TWITTER_API_KEY'),
+        consumer_secret=os.getenv('TWITTER_API_SECRET'),
+        access_token=os.getenv('TWITTER_ACCESS_TOKEN'),
+        access_token_secret=os.getenv('TWITTER_ACCESS_SECRET'),
+        wait_on_rate_limit=True
+    )
+    
+    # Keep v1.1 API for media upload only
+    auth = tweepy.OAuthHandler(
+        os.getenv('TWITTER_API_KEY'),
+        os.getenv('TWITTER_API_SECRET')
+    )
+    auth.set_access_token(
+        os.getenv('TWITTER_ACCESS_TOKEN'),
+        os.getenv('TWITTER_ACCESS_SECRET')
+    )
+    twitter_api = tweepy.API(auth)
+    logger.info("Twitter API authentication successful")
+except Exception as e:
+    logger.error(f"Failed to initialize Twitter API: {str(e)}")
+    raise
 
 def start(update, context):
     """Send a message when the command /start is issued."""
@@ -149,28 +173,34 @@ def run_flask():
 
 def main():
     """Start the bot"""
-    # Create updater and pass in bot token
-    updater = Updater(os.getenv('TELEGRAM_BOT_TOKEN'), use_context=True)
+    try:
+        # Create updater and pass in bot token
+        updater = Updater(os.getenv('TELEGRAM_BOT_TOKEN'), use_context=True)
+        logger.info("Telegram bot initialized successfully")
 
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
+        # Get the dispatcher to register handlers
+        dp = updater.dispatcher
 
-    # Add command handlers
-    dp.add_handler(CommandHandler("start", start))
+        # Add command handlers
+        dp.add_handler(CommandHandler("start", start))
 
-    # Add handler for channel posts
-    dp.add_handler(MessageHandler(Filters.update.channel_posts, handle_channel_post))
+        # Add handler for channel posts
+        dp.add_handler(MessageHandler(Filters.update.channel_posts, handle_channel_post))
 
-    # Start Flask in a separate thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+        # Start Flask in a separate thread
+        flask_thread = threading.Thread(target=run_flask)
+        flask_thread.daemon = True
+        flask_thread.start()
 
-    # Start the bot
-    updater.start_polling()
-    
-    # Run the bot until you press Ctrl-C
-    updater.idle()
+        # Start the bot
+        updater.start_polling()
+        
+        # Run the bot until you press Ctrl-C
+        updater.idle()
+        
+    except Exception as e:
+        logger.error(f"Failed to start bot: {str(e)}")
+        raise
 
 if __name__ == '__main__':
     main()
