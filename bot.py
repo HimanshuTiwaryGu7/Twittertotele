@@ -5,8 +5,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import tweepy
 import requests
 from io import BytesIO
-from aiohttp import web
-import asyncio
+from flask import Flask
+import threading
 
 # Load environment variables
 load_dotenv()
@@ -135,41 +135,42 @@ def handle_channel_post(update, context):
     except Exception as e:
         logging.error(f"Error processing message: {str(e)}")
 
-async def web_server():
-    app = web.Application()
-    
-    async def health_check(request):
-        return web.Response(text="Bot is running!", status=200)
-    
-    app.router.add_get('/', health_check)
-    app.router.add_get('/health', health_check)
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
+# Initialize Flask app
+app = Flask(__name__)
+
+@app.route('/')
+@app.route('/health')
+def health_check():
+    return 'Bot is running!', 200
+
+def run_flask():
     port = int(os.environ.get('PORT', 8000))
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    print(f"Web server started on port {port}")
-    return runner
+    app.run(host='0.0.0.0', port=port)
 
-async def run_bot():
+def main():
     """Start the bot"""
+    # Create updater and pass in bot token
     updater = Updater(os.getenv('TELEGRAM_BOT_TOKEN'), use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.update.channel_posts, handle_channel_post))
-    updater.start_polling()
-    print("Bot started!")
-    await asyncio.sleep(float('inf'))
 
-async def main():
-    try:
-        # Start web server first
-        runner = await web_server()
-        # Start bot
-        await run_bot()
-    except KeyboardInterrupt:
-        print("Bot stopped!")
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+
+    # Add command handlers
+    dp.add_handler(CommandHandler("start", start))
+
+    # Add handler for channel posts
+    dp.add_handler(MessageHandler(Filters.update.channel_posts, handle_channel_post))
+
+    # Start Flask in a separate thread
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    # Start the bot
+    updater.start_polling()
+    
+    # Run the bot until you press Ctrl-C
+    updater.idle()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
